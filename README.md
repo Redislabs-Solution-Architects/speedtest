@@ -1,5 +1,5 @@
 # Search Speed Test
-Comparison of execution times for searches on numeric vs tag vs text fields.
+Comparison of execution times for searches on numeric vs tag vs text fields for a simple single value scenario.
 ## Usage
 ```bash
 $ python3 test.py
