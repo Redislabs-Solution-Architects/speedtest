@@ -63,7 +63,7 @@ for i in range(1, TEST_ITERATIONS+1):
     ave_tag_exec = round(ave_tag_exec + 
         (duration - ave_tag_exec)/i, 3)
 
-        # calc ave execution time for the tag search
+    # calc ave execution time for the text search
     result, duration = time_func(r.ft('txtIdx').search, Query('@acct_num:123'))
     assert result.total == 1
     ave_txt_exec = round(ave_txt_exec + 
