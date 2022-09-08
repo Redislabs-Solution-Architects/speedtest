@@ -1,8 +1,9 @@
 # Search Speed Test
-Comparison of execution times for searches on numeric vs tag fields
+Comparison of execution times for searches on numeric vs tag vs text fields.
 ## Usage
 ```bash
 $ python3 test.py
-Average numeric search execution time: 114383.317 ns
-Average tag search execution time: 114619.734 ns
+Average num search execution time: 123089.675 ns
+Average tag search execution time: 122802.905 ns
+Average txt search execution time: 124719.211 ns
 ```
