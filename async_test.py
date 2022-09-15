@@ -4,9 +4,13 @@ from redis.commands.search.field import TagField, NumericField, TextField
 from redis.commands.search.indexDefinition import IndexDefinition, IndexType
 from redis.commands.search.query import Query
 from time import perf_counter_ns
+import sys
 
 TEST_ITERATIONS = 10000
-KEYS = 10000
+if (len(sys.argv) > 1):
+    KEYS = int(sys.argv[1])
+else:
+    KEYS = 1000
 
 r = aioredis.from_url('redis://localhost')
 

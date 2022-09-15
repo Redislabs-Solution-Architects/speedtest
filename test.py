@@ -3,9 +3,13 @@ from redis.commands.search.field import TagField, NumericField, TextField
 from redis.commands.search.indexDefinition import IndexDefinition, IndexType
 from redis.commands.search.query import Query
 from time import perf_counter_ns, sleep
+import sys
 
 TEST_ITERATIONS = 10000
-KEYS = 10000
+if (len(sys.argv) > 1):
+    KEYS = int(sys.argv[1])
+else:
+    KEYS = 1000
 ave_num_exec = 0
 ave_tag_exec = 0
 ave_txt_exec = 0
@@ -49,7 +53,7 @@ pipe.ft('txtIdx').create_index(txtSchema,
     definition=IndexDefinition(index_type=IndexType.JSON, prefix=['authTxt:']))
     
 pipe.execute()
-sleep(1)  # corrects race condition
+sleep(5)  # corrects race condition
 
 for i in range(1, TEST_ITERATIONS+1):
     # calc ave execution time for the numeric search
