@@ -2,9 +2,10 @@ import redis
 from redis.commands.search.field import TagField, NumericField, TextField
 from redis.commands.search.indexDefinition import IndexDefinition, IndexType
 from redis.commands.search.query import Query
-from time import perf_counter_ns
+from time import perf_counter_ns, sleep
 
 TEST_ITERATIONS = 10000
+KEYS = 10000
 ave_num_exec = 0
 ave_tag_exec = 0
 ave_txt_exec = 0
@@ -19,36 +20,36 @@ def time_func(func, *args):
 
 # clean up db for test
 r = redis.Redis()
-try:
-    r.ft('numIdx').dropindex()
-    r.ft('tagIdx').dropindex()
-    r.ft('txtIdx').dropindex()
-except Exception:
-    pass
+r.flushdb()
 
-# set up three JSON keys
-r.json().set('authNum:123:456:789', '$', {"acct_num":123, "au_tran_id":456, "au_auth_cd":789})
-r.json().set('authTag:123:456:789', '$', {"acct_num":"123", "au_tran_id":"456", "au_auth_cd":"789"})
-r.json().set('authTxt:123:456:789', '$', {"acct_num":"123", "au_tran_id":"456", "au_auth_cd":"789"})
+pipe = r.pipeline()
+#insert keys into each prefix
+for i in range(KEYS):
+    pipe.json().set(f'authNum:{i}:{i}:{i}', '$', {"acct_num":i, "au_tran_id":i, "au_auth_cd":i})
+    pipe.json().set(f'authTag:{i}:{i}:{i}', '$', {"acct_num":str(i), "au_tran_id":str(i), "au_auth_cd":str(i)})
+    pipe.json().set(f'authTxt:{i}:{i}:{i}', '$', {"acct_num":str(i), "au_tran_id":str(i), "au_auth_cd":str(i)})
 
 # set up three indices; one for each of the prefixes
 numSchema = ( NumericField('$.acct_num', as_name='acct_num'),
             NumericField('$.au_tran_id', as_name='au_tran_id'),
             NumericField('$.au_auth_cd', as_name='au_auth_cd'))
-r.ft('numIdx').create_index(numSchema, 
+pipe.ft('numIdx').create_index(numSchema, 
     definition=IndexDefinition(index_type=IndexType.JSON, prefix=['authNum:']))
 
 tagSchema = ( TagField('$.acct_num', as_name='acct_num'),
             TagField('$.au_tran_id', as_name='au_tran_id'),
             TagField('$.au_auth_cd', as_name='au_auth_cd'))
-r.ft('tagIdx').create_index(tagSchema, 
+pipe.ft('tagIdx').create_index(tagSchema, 
     definition=IndexDefinition(index_type=IndexType.JSON, prefix=['authTag:']))
 
 txtSchema = ( TextField('$.acct_num', as_name='acct_num'),
             TextField('$.au_tran_id', as_name='au_tran_id'),
             TextField('$.au_auth_cd', as_name='au_auth_cd'))
-r.ft('txtIdx').create_index(txtSchema, 
+pipe.ft('txtIdx').create_index(txtSchema, 
     definition=IndexDefinition(index_type=IndexType.JSON, prefix=['authTxt:']))
+    
+pipe.execute()
+sleep(1)  # corrects race condition
 
 for i in range(1, TEST_ITERATIONS+1):
     # calc ave execution time for the numeric search

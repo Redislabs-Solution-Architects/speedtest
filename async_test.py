@@ -48,8 +48,10 @@ async def load():
         definition=IndexDefinition(index_type=IndexType.JSON, prefix=['authTxt:']))
     
     await pipe.execute()
+    await asyncio.sleep(1)
 
 async def test():
+    #await load()
     ave_num_exec = 0
     ave_tag_exec = 0
     ave_txt_exec = 0
