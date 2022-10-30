@@ -1,7 +1,8 @@
 # Author Joey Whelan
 
+from typing import Callable
 from redis import Connection, from_url
-from redis.commands.search.field import TagField, NumericField, TextField
+from redis.commands.search.field import Field, TagField, NumericField, TextField
 from redis.commands.search.indexDefinition import IndexDefinition, IndexType
 from redis.commands.search.query import Query
 from time import perf_counter_ns
@@ -18,10 +19,6 @@ NKEYS:int  = 1000000                        # default number of keys (each: tag,
 PROCESSES: int = cpu_count() - 1            # number of multiprocesses to be used
 MAX_DIGITS: int = 10                        # max of digits for the field
 connection: Connection = None               # global Redis connection
-
-class DATA_TYPE(Enum):
-    NUMBER = 1
-    STRING = 2
 
 class FIELD_TYPE(Enum):
     NUMERIC = 1
@@ -71,15 +68,24 @@ def multi_test(args: dict) -> pd.DataFrame:
         '90%': '90% (ms)'
     })
 
-def test_worker(iterations: list[int]) -> tuple[list, list, list]:
-    num_times = []
-    tag_times = []
-    txt_times = []
+def test_worker(iterations: int) -> tuple[list, list, list]:
+    """ Multiprocessing function for test iterations.  
+        Parameters
+        -----------
+        iterations - number of search iterations to execute
+
+        Returns
+        -------
+        tuple containing lists of tag, text, and numeric search execution durations
+    """   
+    num_times: list[int] = []
+    tag_times: list[int] = []
+    txt_times: list[int] = []
 
     for i in range(1, iterations+1):
-        rnd = random.randint(0, int('9' * MAX_DIGITS))
+        rnd: int = random.randint(0, int('9' * MAX_DIGITS))
         # calc ave execution time for the numeric search
-        duration = time_func(connection.ft('numIdx').search, Query(f'@field:[{rnd} {rnd}]'))
+        duration: int = time_func(connection.ft('numIdx').search, Query(f'@field:[{rnd} {rnd}]'))
         num_times.append(duration)
 
         # calc ave execution time for the tag search
@@ -91,21 +97,40 @@ def test_worker(iterations: list[int]) -> tuple[list, list, list]:
         txt_times.append(duration)
     return num_times, tag_times, txt_times
 
-def time_func(func, *args):
-    # Execute a function and measure its execution time (nanoseconds)
+def time_func(func: Callable, *args: Query) -> int:
+    """ Multiprocessing function for test iterations.  
+        Parameters
+        -----------
+        func - Redis search command
+        args - Redis Query param
+
+        Returns
+        -------
+        execution time (nanoseconds) of the search command
+    """  
     t1 = perf_counter_ns()
     func(*args)
     t2 = perf_counter_ns()
     duration = t2 - t1
     return duration
 
-def multi_load(total_keys):
+def multi_load(total_keys: int) -> None:
+    """ Function for loading test keys into Redis.  Kicks off a multiprocessing function 
+        Parameters
+        -----------
+        total_keys - total number of keys to be created, each, for text, tag, and numeric types
+    """  
     keys = [total_keys // PROCESSES for i in range(PROCESSES)]
     keys[0] += total_keys % PROCESSES
     with Pool(PROCESSES) as pool:
         pool.map(load_worker, keys)
 
-def load_worker(keys):
+def load_worker(keys: int) -> None:
+    """ Multiprocessing worker function for loading test keys into Redis.
+        Parameters
+        -----------
+        keys - total number of keys to be created by this worker
+    """  
     global connection
     pipe = connection.pipeline()
     for i in range(keys):
@@ -115,10 +140,17 @@ def load_worker(keys):
         pipe.json().set(f'keyTxt:{val}', '$', {"field":str(val)})
     pipe.execute()
 
-def create_index(idx_name, field_type):
+def create_index(idx_name: str, field_type: FIELD_TYPE) -> None:
+    """ Multiprocessing worker function for loading test keys into Redis.
+        Parameters
+        -----------
+        idx_name - name of index
+        field_type - enum of index field type
+    """  
     global connection
-    schema = None
-    idx_def = None
+    schema: Field = None
+    idx_def: IndexDefinition = None
+
     match field_type:
         case FIELD_TYPE.NUMERIC:
             schema = NumericField('$.field', as_name='field')
@@ -133,13 +165,13 @@ def create_index(idx_name, field_type):
 
 def check_arg(value: str) -> int:
     """ Arg parser validation of size params
-            Parameters
-            ----------
-            value - string representing number 
+        Parameters
+        ----------
+        value - string representing number 
 
-            Returns
-            -------
-            int - input value casted to int
+        Returns
+        -------
+        int - input value casted to int
     """
     ival: int = int(value)
     if ival < 1 or ival > 1000000:
